@@ -26,6 +26,7 @@ FILE_DIRS = ["src", "scripts"]
 # File extensions
 C_EXTS = {".c", ".cpp", ".h", ".hpp"}
 SCRIPT_EXTS = {".sh", ".bash", ".py"}
+TEX_EXTS = {".tex"}
 
 
 # ----------------------------------------------------------------------
@@ -71,11 +72,9 @@ def git_work_tree_clean() -> bool:
 			text=True,
 			check=True,
 		)
-		return Path(result.stdout.strip())
+		if result.stdout.strip(): # Non-empty; not clean
+			return False
 	except subprocess.CalledProcessError:
-		return False
-	
-	if result.stdout.strip(): # Non-empty; not clean
 		return False
 
 	return True
@@ -177,6 +176,8 @@ def decide_notice(file_path: Path):
 			insert_line = 1
 		else:
 			insert_line = 0
+	elif suffix in TEX_EXTS:
+		prefix = "% "; insert_line = 0
 	else:
 		prefix = "// "; insert_line = 0
 
@@ -190,14 +191,15 @@ def main():
 		print("Not called within a Git work tree.", file=sys.stderr)
 		return -1
 
+	root = git_root()
+
 	if not git_work_tree_clean():
 		print("""WARNING:
-		Git work tree not clean (changes not tracked); possible data
-		loss if you run this script!
+Git work tree not clean (changes not tracked); possible data
+loss if you run this script!
+		ABORT!!!
 		""")
 		return -1
-
-	root = git_root()
 
 	for dir_rel in FILE_DIRS:
 		dir_abs = root / dir_rel
@@ -209,7 +211,9 @@ def main():
 				continue
 			decide_notice(file_path)
 
+	return 0
+
 
 if __name__ == "__main__":
-	main()
+	sys.exit(main())
 
