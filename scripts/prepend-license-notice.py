@@ -27,6 +27,7 @@ FILE_DIRS = ["src", "scripts"]
 C_EXTS = {".c", ".cpp", ".h", ".hpp"}
 SCRIPT_EXTS = {".sh", ".bash", ".py"}
 TEX_EXTS = {".tex"}
+COQ_EXTS = {".v"}
 
 
 # ----------------------------------------------------------------------
@@ -94,16 +95,17 @@ def has_file_notice(file_path: Path, end:int = 5) -> int:
 	return -1
 
 
-def insert_notice(file_path: Path, prefix: str = "", insert_line: int = 0):
+def insert_notice(file_path: Path, prefix: str = "", appendix: str = "", insert_line: int = 0):
 	"""
 	Insert the license notice into the file at the given line.
 	@param prefix which is to be prepended to each line of notice
+	@param appendix which is to be appended to each line of notice
 	@param insert_line before which the notice is to be inserted (0 based).
 	"""
 	with file_path.open('r') as f:
 		lines = f.readlines()
 
-	notice_lines = [f"{prefix}{line}\n" for line in NOTICE.splitlines()]
+	notice_lines = [f"{prefix}{line}{appendix}\n" for line in NOTICE.splitlines()]
 	insert_index = max(0, min(insert_line, len(lines)))
 	lines = (
 		lines[:insert_index] + notice_lines + 
@@ -163,12 +165,13 @@ def decide_notice(file_path: Path):
 	# init as None to catch cases when they are not assigned
 	prefix:str = None
 	insert_line: int = None
+	appendix:str = None
 
 	suffix = file_path.suffix.lower()
 	if suffix in C_EXTS:
-		prefix = "// "; insert_line = 0
+		prefix = "// "; insert_line = 0; appendix = ""
 	elif suffix in SCRIPT_EXTS:
-		prefix = "# "
+		prefix = "# "; appendix = ""
 		with file_path.open("r", encoding="utf-8") as f:
 			first_line = f.readline()
 		# Check for shebang
@@ -177,11 +180,13 @@ def decide_notice(file_path: Path):
 		else:
 			insert_line = 0
 	elif suffix in TEX_EXTS:
-		prefix = "% "; insert_line = 0
+		prefix = "% "; insert_line = 0; appendix = ""
+	elif suffix in COQ_EXTS:
+		prefix = "(* "; insert_line = 0; appendix = " *)"
 	else:
-		prefix = "// "; insert_line = 0
+		prefix = ""; insert_line = 0; appendix = " *)"
 
-	insert_notice(file_path, prefix, insert_line)
+	insert_notice(file_path, prefix, appendix, insert_line)
 
 # ----------------------------------------------------------------------
 # Main
