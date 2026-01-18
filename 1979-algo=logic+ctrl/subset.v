@@ -1,3 +1,6 @@
+(* This file is licensed under the GNU GPL v3. *)
+(* Copyright (C) 2026 Guanyuming He. *)
+
 (**
 	In Kowalski's Algorithm = Logic + Control 1979,
 	he defines the subset relation using Horn clauses as
