@@ -186,7 +186,21 @@ def decide_notice(file_path: Path):
 # ----------------------------------------------------------------------
 # Main
 # ----------------------------------------------------------------------
+def usage(prog_name: str):
+	"""
+	@param prog_name: pass sys.argv[0]
+	"""
+	print("Usage:")
+	print(f"{prog_name} --help: Show this help message")
+	print(f"{prog_name} paths ...: Run this script on all paths, recursively.")
+
+
 def main():
+	args = sys.argv[1:]
+	if "--help" in args or len(args) == 0:
+		usage(sys.argv[0])
+		return 0
+
 	if not is_git_work_tree():
 		print("Not called within a Git work tree.", file=sys.stderr)
 		return -1
@@ -201,15 +215,18 @@ loss if you run this script!
 		""")
 		return -1
 
-	for dir_rel in FILE_DIRS:
-		dir_abs = root / dir_rel
-		if not dir_abs.is_dir():
-			continue
-		for file_path in dir_abs.rglob("*"):
-			if  not file_path.is_file() or \
-				not os.access(file_path, os.W_OK | os.R_OK):
-				continue
-			decide_notice(file_path)
+	for p in args:
+		path = Path(p)
+		if not path.is_absolute():
+			path = root / path
+		if path.is_file():
+			decide_notice(path)
+		elif path.is_dir():
+			for file_path in path.rglob("*"):
+				if  not file_path.is_file() or \
+					not os.access(file_path, os.W_OK | os.R_OK):
+					continue
+				decide_notice(file_path)
 
 	return 0
 
