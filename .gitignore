@@ -1,0 +1,35 @@
+# The file is licensed under the GNU GPL v3.
+# Copyright (C) Guanyuming He 2026
+#
+# The .gitignore file consists of 
+# 1. Parts copied or modified from https://gitignore.org
+# 2. Parts added by myself.
+# 
+# Because gitignore.org is licensed under the CC0 License,
+# I could apply GPL v3 over the entire file.
+
+######################################################################
+# TeX
+######################################################################
+# Created by https://gitignore.org
+# TeX.gitignore
+## Core latex/pdflatex auxiliary files:
+*.aux
+*.lof
+*.log
+*.lot
+*.fls
+*.out
+*.toc
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+## Intermediate documents:
+*.dvi
+*.xdv
+*-converted-to.*
+*.ps
+*.eps
+*.pdf
