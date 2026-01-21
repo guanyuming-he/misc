@@ -1,0 +1,26 @@
+1  CLEAN ->
+2  Some FS sys call ->
+3  some log records in log block ->
+4  all log records in log block ->
+5  commit set ->
+6  writing logged changes to disk ->
+7  completed all logged changes to disk ->
+8  commit unset ->
+9  erasing logs ->
+10 all logs erased = CLEAN
+
+Each number is a time point. Each n -- n+1 is a time period
+during which power may be lost.
+
+1  -- 2 : all progress since CLEAN lost
+2  -- 3 : all progress since CLEAN lost
+3  -- 4 : all progress since CLEAN lost
+4  -- 5 : all progress since CLEAN lost
+5  -- 6 : some changes are written to disk twice
+6  -- 7 : some changes are written to disk twice
+7  -- 8 : all changes are written to disk twice
+8  -- 9 : nothing lost or done twice (since commit is unset, unerased logs are
+ignored and erased again during recovery)
+9  -- 10: nothing lost or done twice (since commit is unset, unerased logs are
+ignored and erased again during recovery)
+   

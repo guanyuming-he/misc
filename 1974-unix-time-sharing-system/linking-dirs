@@ -1,0 +1,54 @@
+Unix forbids the (hard) linking of dirs. Why?
+
+Well, the authors give their answer in p. 3:
+
+> The directory structure is constrained to have the form of a rooted tree.
+> Except for the special entries ‘‘ . ’’ and ‘‘ . . ’’, each directory must
+> appear as an entry in exactly one other directory, which is its parent. The
+> reason for this is to simplify the writing of programs that visit subtrees of
+> the directory structure, and more important, to avoid the separation of
+> portions of the hierarchy. If arbitrary links to directories were permitted,
+> it would be quite difficult to detect when the last connection from the root
+> to a directory was severed.
+
+But we can still ask various questions about it. First, would it affect the
+complexity of the kernel significantly if linking of dirs was allowed?
+
+I belive that it would not. The kernel does not care if the file system forms a
+tree, a graph, or not connected at all, since it is able to track all inodes
+(recorded somewhere on the disk). Well, even if it wants to enforce that every
+inode is reachable from root, no significant changes to interfaces would be
+needed; so long as we ensure that:
+1. dirs could only be created reachable
+2. dirs could only be rmed when it has no entry (excluding . and ..)
+then allowing the linking of dirs would not orphan anything.
+Clearly, that's what the current interface is like, when linking is not
+allowed.
+
+Thus, like the authors said, it was really for the sake of user-space
+programmers who want to treat the filesystem as a tree. The interesting point
+is, however, that we also find providing aliases for filesystems useful, for
+which (and other reasons) we invented symlinks and bind-mounts. That,
+unfortunately, does not solve the problem, almost not at all. By default, most
+programs which recurse will either ignore symlinks by default or try to detect
+cycles. Otherwise, bad things still happen if loops are formed using symlinks
+or bind-mounts, in the forms of
+1. broken symlinks
+2. deadloops or crashes
+3. security issues
+They are not completely useless in terms of addressing the problem introduced
+with allowing cycles, though. Had the linking be supported by the kernel
+directly as hard links, user space programs would not be able to distinguish
+them from the (supposed real dir), and then could not selectively ignore them.
+
+Thus, I conclude this as: the designers disallowed linking dirs, for the sake
+of a simpler fs view (a tree in the eyes from userspace programs). However,
+users still find aliases useful and added that feature back. Moreover, with
+the cycles now allowed, we still assume a simplistic tree view, thus leaving
+the problems unsolved. This is a curious situation where designers originally
+wanted it one way (disallowing) and then users wanted it the other way (adding
+it back), but the most interesting thing is that neither of them is wrong from
+the point of motiviation. If I really have to pick a wrong one, I'd say the
+users are too greedy by wanting the best of both worlds: you can't have the
+benefits of aliasing of dirs while also treating the fs as a tree, without
+running into problems.
