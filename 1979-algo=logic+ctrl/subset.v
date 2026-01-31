@@ -169,7 +169,9 @@ Proof.
 	Unshelve.
 	Abort. (* Can't complete the two shelved. *)
 
-
-
-
-
+(* Turned out that I got the intention all wrong.
+  The strange defn is explained in p. 11 of the paper,
+  which uses an arrow notation to explain it.
+   I just now wonder why didn't the author put the explanation where the defn
+   is. 
+ *)
