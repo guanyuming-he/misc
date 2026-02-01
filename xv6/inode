@@ -1,0 +1,6 @@
+It would be tempting to eliminate the 12 direct blocks in the inode, thus
+saving 12 * sizeof uint. However, the main bottleneck in disk I/O is disk I/O
+itself. Moreover, althought disk cache exists, it's below the inode layer.
+
+Therefore, one major advantage of this imbalanced direct + indirect arrangement
+of inode blocks is to reduce the number of block I/Os.

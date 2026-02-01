@@ -1,0 +1,2 @@
+in kernel/fs.c:ialloc(), we could have checked if arg type==0 here, instead of
+relying on the check in ilock() later.
