@@ -1,0 +1,123 @@
+1. stochastic superoptimization:
+stochastic process is one which can be completely modelled prbabilistically
+Monte Carlo method is to numerically approximate by the law of big numbers
+Markov Chain is a sequence of random variables which satisfy the Markov
+property by which each step is only dependent on the previous one. (not
+necessarily unique)
+Connecting theorem: for any distribution function under some conditions (e.g.
+finite state space), one can construct a Markov chain whose equillibrium
+(limit) distribution equals it.
+
+Why doing this? 
+	First motivation: superoptimization, which considers various aspects of
+	optimization together, progarm as a whole.	
+
+Section 2
+Problems of considering program as a whole:	
+	Large space, exponential with length. Complex interaction,
+	difficulty to reason with completely. Thus, try searching.
+  THOUGHT:
+	Fruitful device: using tools from other fields. E.g. ML example:
+	data -> train -> model (provider) where data  comes from multiple sources: MPC
+	model. Exactly CrypTorch.
+	model + private data -> prediction. private data comes from clients. Here
+	homomorphic encryption useful.
+Biggest problems during searching? 
+	1. having a reasonable possibility of reaching near the optimial point
+	(some search algorithms wander without reaching if the space is too complex) 
+	2. don't get stuck on local minima.
+
+Section 3
+How does STOKE address these problems: 
+	1. MCMC which is known to perform well on such "irregular functions that
+	are dense with local minima" , because of possibilisty to go worse rewrite
+	to allow escape from local minima.(reason described in the algo)
+	2. a good cost function which directly decides the search space shape
+OK, but MCMC isn't directly applicable: it needs a probability distribution,
+yet we only have a cost function.
+	Section 3.2 (upper right p. 3) describes how to transform the cost func to
+	a PDF.
+But in which Z is not easily computable.
+	No need to compute it! just run the Metropolis-Hastings algo and we got the
+	desired proprety at the limit point anyway.
+The algo:
+	at each step computes a proposal distribution (not the entire func, just
+	needed values) and draw rewrites from it. The best proposal, according to
+	the paper, is usually the one that has significant possibility for both local
+	and global rewrites.
+  THOUGHT:
+  PRUNING?
+	No, fucks up the algorithm which requires every rewrite to be
+	possibly reached (albeit some negligible probability).
+	It's like why you can't easily prune gradient descent, because some regions,
+	even non-optimal, lead to better ones easily.
+  BUT some pruning not on search is possible, e.g. Section 4.5 (see later)
+
+Section 4
+Main obstacle: compute the cost function (perf), and discard when eq != 0,
+in the setting of x86.
+- Ensure rewrites eq during searching? Expensive to do exactly.
+  Thus does approximation by test cases (still tries the exact eq if
+  approximation says eq). Also make the searching smoother than just dropping
+  non-eq ones.
+	"In addition to performance, Equation 12 has the following de-
+	sirable properties. First, failed computations of eq(·) will produce
+	a counterexample testcase that may be used to refine τ as described
+	in [4]. The careful reader will note that refining τ affects the cost
+	function, c(·), and effectively changes the search space that it de-
+	fines. However in practice, the number of failed validations that are
+	required to produce a robust set of testcases that accurately pre-
+	dict success is quite low"
+- Compute perf exactly? Also expensive! They authors use heuristics.
+- Ways to permute a program? Section 4.3
+- Result so far? Competitive with compilers, not experts.
+	+ Why? Probably because the two areas are separated and only connected by
+	very narrow path ways (another reason why pruning is a bad idea).
+- What did they do to get over this problem? Dividing optimization into
+  synthesis (finding equivalent classes) and optimiation (searching within
+	equiv classes which T is in)
+- 4.5 Pruning on eq, not searching !
+- 4.6 consider some representative cases to improve eq's equation.
+	  THOUGHT: Section 3 and 4 shows the evolution of STOKE, which is remarkble
+	  --- a usual paper would only show the final, clean, polished result, not a
+	  rough implementation during the process and explain how it failed to meet the
+	  expectations.
+- 4.7 criticizes its current cost function reliance on the result (i.e.
+  treating program as a blackbox), which ignores much of partially correct
+  computations. But the insight is that search is often incremental.
+
+Section 5
+the process by which STOKE is executed
+	IMPROVEMENT: why start with a compiler generated; why not start with expert
+	written assembly?
+5.2 Where a lot of formal verification methods can be considered. The method
+	used here is model checking: encode each instruction as a transformation
+	formula and the final assertion as reg_i = reg_i' for i and all memories
+	accessed are equal, every formula logically anded together. Check for
+	validity.
+  Problem? Exponential. Simplify things.
+
+Section 6
+evaluation:
+6.3 The limits identified here are basically 1. neglected partially correct
+	rewrites (4.7) and 2. can not deal with loops.
+	Also, some from Hacker's delight timed out (time!).
+
+Future works:
+1. basic bottleneck that prevents loops: eq. For now, eq is a two level
+process: lv.1 heuristics lv.2 model checking
+  My wild idea: Backus' Can Programming be Liberated from the Von Neumann
+	Style? Transform only loops, not all, into functional style?
+	Challenge: 1. tranform loops this way 2. permute loops this way.
+  Also, add more lvs? Maybe think of a formal verification that works fast for
+	some classes of programs with eq.
+  Another idea: instead of dealing with eq, dealing with loops. Can we
+	decompose complex loops into simpler ones? E.g. loop body length,
+	conditions within?
+2. Time spent (probably why it isn't widely deployed)
+  Boring idea: try entirely different searching algorithms like LLMs. 
+  Better idea: combine ML with it in good ways. E.g. instead of walking
+	randomly, use a ML model to guide the searching.
+3. Scalability: more aggrressive pruning? More searching directionals instead
+	of optimal or one direction random hillcliming.
+
