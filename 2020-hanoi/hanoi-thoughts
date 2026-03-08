@@ -1,0 +1,156 @@
+Section 1. 
+	Usefulness in SE: yes. In SE one would ideally want to start with a
+concrete spec and invariant of an ADT and then design its interfaces. However,
+in reality, it's often that the systems this ADT has to interact with are
+alreay there, and one has to somewhat design interfaces before the inv, sadly.
+
+	Even if we ensure the formula I is visibly inductive w.r.t. a set S of all
+known construtible states, S might not be the set of all constructible states.
+	The purpose, still, of ensuring visible inductiveness, is to at least being
+able to treat every counter-ex <s,s'> where s in S as positive. 
+	What if we encounter counter-ex <s,s'> where s is not in S? Well, we treat
+that as negative during the algorithm for now; and I suppose the algo has a way
+to handle when it turns out to be wrong.
+
+	First said "two black-box components: (1) a synthesizer (2) a verifier"
+then later seems to care about how the verifier works: "To instantiate the
+verification component, we use a form of enumerative test generation. ...
+We have also implemented extensions that allow Hanoi to be used with
+higher-order code. Here, the main chal- lenge comes in how to extract
+counterexamples from higher- order arguments. It turns out that our first-order
+scheme for extracting counterexamples is ..."
+	I suppose, well, they want to talk about how the verifier works to show how
+they extended it to higher-order programs in the paper. Still, at an algo level
+they can treat it as a blackbox. That is, they want to emphasize the algorithm
+parameterizes them as functions; yet at the same time, they happen to also
+invent the verifier.
+
+Section 2
+	Pretty straight forward example; but a few interesting points:
+
+	I_* is not the exact set of reachable states which satisfy phi. Instead,
+it can be any property that implies phi and is inductive. In other words, over
+approximation is allowed with I_* satisfied by unreachable states.
+	The defn (phi s) \triangleq forall i : int. 
+	~(lookup empty i) /\ (lookup (insert s i) i) /\ ~(lookup (delete s i) i)
+is not quantifier free. CHC solvers may prefer quantifier free version.
+	Note how the synthesized I_* uses lookup in its defn. That conceptually is
+fine. But if in a CHC context, then it might require lookup be encoded in CHC
+as well.
+
+Section 2.1
+	Basically narrating the algorithm with a concrete example, but with a few
+details to keep an eye on:
+
+	What is V-? I think it's an approximation of which states should not
+satisfy our candidate. There can be two cases:
+	1. ~(phi s) which guarantees that we should include s in V-
+	2. found counter-ex <s,s'> to fully inductiveness s.t. s notin V+ and (I s)
+but not (I s'). We can't say if s is really reachable, but we suppose it is not
+and add s to V-. Later it can be corrected.
+	The choice here: we need to restore inductiveness, which, since we know (I
+s) and ~(I s'), can either be achieved by forcing ~(I s) = adding s to
+V- or forcing (I s') = forcing s' into V+. Why the former instead of the
+latter? Well, since we don't know if s or s' is constructible, choosing either
+is a compromise: if we choose adding s to V- but later s turns out to be
+constructible, the V- becomes imprecise. Similarly, if choosing adding s' to V+
+but s' later not constructible, then V+ becomes imprecise. But we want to
+ensure V+ is always precise to ensure visible inductiveness, so we sacrifice
+V-.
+
+Section 2.2
+	Now generalizing to operations of the ADT which takes more than one args,
+e.g., union(x1, x2). Then, a counter-ex of inductiveness would be ((x1, x2), y)
+where (x1,x2) notin (V+)^2. The problem here is that we face no longer a binary
+choice.
+	That is, suppose an inductiveness counter-ex is
+((x1, ..., xn), y), where some {x_j} are not in V+, we can add any subset of
+the {x_j} to V-. Hanoi chooses to add the entire set of {x_j} to V-, taking the
+most greedy approach. Why?
+	I think it's choosing least synth calls + most correction calls over
+more future synth calls (possible overlapping counter-ex) + less correction
+calls. Why exactly? Section 4.3 talks about the trade-off, but still not why.
+
+
+Section 3
+	Notice that the paper says "at type X" instead of "of type X". I think it
+has a different meaning. When we say something x is ... at type X, ... here is
+a statement that ranges over types, that is ... : forall X, type -> bool; a
+statement that parameterizes over types.
+
+Section 3.1
+	grammar of the prog lang: very simple first order grammar.
+Operations of an ADT are 1-types. E.g. 
+|- union : alpha -> (alpha -> alpha). 
+|- insert: alpha -> (int -> alpha)
+ 
+	Defn 3.1: careful here that f says forall alpha (tau_m -> tau), which means
+the first parameter is a type, not a value. C.f. alpha -> (tau_m -> tau)
+Basically, f is a function that turns any give concrete ADT and a value of its
+signature type tau_m (i.e. impl of the methods), gives a value of type tau.
+	What is type tau then? I guess it's any type of values that a program using
+a module can produce.
+	Defn 3.2 Notice how in defn 3.1 tau can be any type yet here it's
+restricted to be an ADT alpha, because it only makes sense to talk about the
+specification over alpha, not any random type like int.
+
+Section 3.2 
+	Property is basically P : type -> type -> ... -> bool, like a statement, in
+type theory.
+	One key part: P and Q are allowed to be two different properties.
+
+Figure 3:
+	P and Q flipped in -FUN. p. 5 last par explains it, but still don't
+understand: yes, the module needs P as input, so all the arg has to do is to
+output P. Then, can't its input be another thing, not just Q?
+	Guess it's because of covariance, but don't really understand. Another expl
+is that module outputs type Q so it gives that to the arg as input... But it
+feels so made up: the module can, of course, produce other than P and Q
+internally.
+	Also, this seems to be a meta-level statment. And we are now using
+formalism in the meta-language... how do we even formally manipulate them? 
+	p. 6 says S and V in CEx<S, V> are witnesses of the counter-ex. Yes, but in
+rule I-A-CEx, nothing tells us that {} -> op -> {v}.
+	Maybe it's just a semantic witness which doesnt say anything about the
+computation path. The path might just be given elsewhere, not in this
+formalism.
+
+Section 3.4: P there should agree in upper and lower cases?
+
+Section 4.1
+	Guess they only work on programs, modules, etc. of this prog lang. That is
+fine.
+
+Section 4.2
+	1. If the higher order function does not take as arg a func which involves
+the adt, then the counter-ex value of type adt cannot come from that either.
+This case is simple.
+	2. But when it does take such args, the paper uses the higher-order
+contracts of Findler and Felleisen.
+
+Section 4.3
+	Design trade-offs. Mostly for speed, optimization, or convenience. C.f. the
+trade-off in section 2.2.
+
+Section 4.4
+	Two caching.
+
+Section 5.
+
+Section 5.4
+	< 30 mins: When benchmarks complete within the 30 minute bound,
+most of the time is spent in verification. Indeed, for all but
+two of the terminating benchmarks, the total time spent
+synthesizing is under two seconds.
+	>= 30 mins:When we
+ran Hanoi on our bst set benchmark, it completed in 78.4 minutes. Unlike the
+prior benchmarks, the majority of the time (65%) was spent in synthesis.
+Moreover, 30% of the total time was spent on the synthesis call that generated
+the final invariant.
+
+Section 5.5
+	Comp with other works basically supports the design choices of Hanoi.
+
+
+Section 6.
+	Seems said pretty well about things related to CHC.
