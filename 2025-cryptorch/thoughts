@@ -1,0 +1,91 @@
+Why does MPC work well on Softmax, GELU, etc.?
+MPC: traditional one: secret polynomial, coefficients unknown:
+given n+1 different points uniquely interpolate an degree n poly (Lagrange interpolation)
+OK, we can share <= n points with peers, enough for computation.
+
+What about exponentiation? sigmoid, threshold functions, etc... transedantal,
+really bad for MPC. What if we change them to polynomials? 
+OK, then backpropogation fucked: vanishing/exploding gradients, bad
+derivatives.
+
+The MPC in the paper:
+Section 2.2: same idea as polynomial one, but easier to compute for ML
+	application
+Section 2.2.2: basically turning floating point to fixed point
+
+
+CrypTen++:
+Section 3.1: how optimized? 1. nvidia cutlass lib better on nvidia gpu. 2. some
+	hacks like hummingbird 3. perf bugs (i.e. non-optimal code) 4. a bit more
+	interesting, hummingbird, which is like speculative execution in cpus.
+
+Section 3.2: returning to mathematical analysis.
+  Most funny observation: observation 2 (testing one's confidence instead of
+	correctness)
+  Observation 3: I like the most: really good one identifying that
+	the same func are used for different purposes in a neural net e^x in softmax
+	e.g. is mostly to turn them positive, because the intuition is that softmax is
+	like turning them to probabilities.
+  Observation 4: complements observation 3
+
+Section 4.1:
+	The framework, modular, highly configurable, like what I did in my master's
+	thesis!
+Section 4.2.2: yeah, need to talk about security in the setting of MPC
+Section 4.3: with these insights, CrypTorch essentially turns the problem into
+	an optimization problem solved by searching: finding the most optimial
+	combination of approximations for this data set and model architecture.
+  But here's one problem I am interested in: see the tolerance of error in
+	each layer isn't static during training --- it will change as the weights in the
+	neural net changes (a bigger weight will cause a bigger amplification of the
+	error)
+Section 4.4: although detailed, mostly dealing with the nuisances or numerical
+	Considerations for different cases, and also keeping the secrecy (via security
+	Label in the type).
+Section 4.5: Like I said, like a CPU speculative execution. 
+  KEY DIFFERENCE: CPU always rolls back safely on incorrect speculation.
+	It has a trade-off between benefit and guess errors.
+	What if we guessed wrong in HummingBird here? Can we easily detect that?
+	Might not without doing a full MPC verification, e.g. 
+	can't know if a < b is wrong if both a and b are secrets from different
+	parties.
+  My guess is that they might tolerate a small amount of errors; but the
+	questions is can they ever become significant? Like in some specific
+	arrangements they may happen to accumulate or happen to happen at important
+	neurons.
+	
+
+Section 5:
+	Supply chain attacks? how to pull this off? side channel leaking secrets?
+	Ex. what if attacker approximates e^x as if (x mod 2 == 0) then cheap e^x
+	otherwise expensive e^x?
+	Runs it vs runs simply using cheap e^x, maybe get some statistical insight
+	into how much proportion of secret is even?
+
+Section 6:
+Section 6.1:
+  WHY?
+	Approximation auto-tuning used the simplest linear search, which worked well.
+	The hill-climbing tuner did not produce better results.
+  I guess: search results basically reflect the search space. Here the
+	trade-off is mostly pretty clear: "knobs" high -> better acc worse perf;
+	low -> worse ass better perf. In other words, pretty convex.
+Section 6.3:
+  Fig 15 very interesting.
+	6.3.2, 6.3.4
+	1. layer (neuron) sensitivity, depending on weights, data, arch
+	6.3.3
+	2. most only needs t=0 + clamp for SST2. Suggests that at could under tune
+	model for easy tasks.	
+
+Future work:
+	1. really need to evaluate security. allowing custom approximations is to allow
+one who doesn't control the model to have a say on the computational effects,
+etc.
+	2. 
+section 7.0.4: don't know if the existing NAS design general or MPC-aware
+models. If not, we could extend our works which now works on trained models to
+then design models with MPC in mind from the start.
+	3. we have some insights about how approximation affect things... can we
+kind of formally study them in principled way?
+
