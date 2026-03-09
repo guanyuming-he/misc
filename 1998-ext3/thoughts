@@ -1,0 +1,24 @@
+It appears that, since the journaling is metadata only, and the ensurance of
+data blocks is ordering only, that is, data block changes which metadata
+changes depend on must be fully written to disk first, I believe it is possible
+for situations where data blocks have changed yet metadata have failed to (due
+to a crash).
+
+Consider the following example where a file originally contains
+	I love you. (length = 11)
+and is supposed to become, after a write()
+	I love your body. (length = 17)
+Suppose for the sake of argument that length = 11 is a block boundary,
+then the write() will need to
+1. override old block
+2. allocate a new block and write to it
+
+Suppose both 1 and 2 have happened and it's time for metadata change, but the
+system crashed before they were committed.
+Then, the file would be left in an inconsistent state of content
+	I love your (length = 11)
+
+
+Since this 1998 paper describes a project in progress, I checked further doc on
+ext3. It seems that the paper only describes what later becomes data=ordered.
+	Journally of everything, data and metadata is supported by data=journal.
