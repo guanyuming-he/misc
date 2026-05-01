@@ -63,7 +63,37 @@ computation which can also be represented by a lower level graph. A mu-graph in
 Mirage has three levels:
 		kernel graph, where each node is a kernel
 		block graph, where each node is computation done in a thread block
-		thread graph, where each node a computation done in a single thread (I
-would say, warp?)
-	
+		thread graph, where each node a computation done in a single thread
+(does it matter to assume it's for a warp, since instructions are scheduled
+this way?)
+
+	Overall, mu-graph works on an abstract level of computation; it relies on
+the abstract model shown in figure 2. not many details are architecture
+specific. It also is limited to optimizing DNN computations, which is why
+treating all data as tensors suffices here.
+
+	There are also a few other compromises the mu-graph made which weren't
+explicitly emphasized. The I/O map, in particular, only allow a few modes: 1)
+for input, split and replica; 2) for output, concatenation. These obviously
+can't cover all operations, e.g. overlapping shift for input (for-loop seems to
+partially enable this), or merge for output. But I suppose they may be enough
+to cover many while drastically reduce the search space. Such crude compromises
+can be good for the specific use case of optimizing tensor programs, but might
+not work for more general computations on GPU.
+
+	For-loop body: an addition to increase some expressive power. It would seem
+that the for-loop would blow up the search space drastically, since it can be
+inserted anywhere, cover any computation in iteration, and has many input
+split possibilities. Need to check how Mirage searches it.
+
+	Validity defn:
+1. "... tensors match the specification of o" seems to mean that the shapes of
+the tensors match the operations, which is a very simple type-checking. 
+3. seems to limit the power of for-loops as well as search spaces.
+
+My key impression on section 2 of mu-graphs: 
+1. at a rather high level. Not much architecture detail (or at all). 
+2. a lot of implicitly stated compromises (e.g. i/o limit, for-loop addition,
+limited for-loop expressive power) that are made between expressive power and
+search space.
 	
