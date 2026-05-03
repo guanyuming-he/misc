@@ -27,7 +27,7 @@ custom kernels which transformations may never reach (e.g. a kernel doing both
 things two previous kernels do).
 	Combining both and discovering new kernels is what Mirage is able to
 achieve with mu-graphs. A mu-graph represents a tensor program and how it's
-computed on GPU.
+computed abstractedly.
 ---------
 Stage 1
 	It's extremely difficult to cover every possible program and execution
@@ -97,3 +97,53 @@ My key impression on section 2 of mu-graphs:
 limited for-loop expressive power) that are made between expressive power and
 search space.
 	
+
+Sec 3
+	Because the division by RMS(X_i) is element-wise, it can be swapped places
+quite freely. The mu-graph that Mirage discovered does the MatMul first and the
+division later. Such changes opens new opportunities for the so-called
+"schedule" optimizations.
+
+Sec 4
+	Incrementally build the mu-graph by repeatedly adding the next operator to
+an intermediate "prefix" graph, with low-level graphs generated recursively.
+Low-level graphs are generated if the operator is graph defined, as opposed to
+predefined operators.  This is used until the thread graph level, which is
+instead built with a rule-based transformation engine.
+	There are still too many to explore naively, so it is pruned by
+representing the graphs as abstract expressions, which are formal expressions
+in algebra. In particular, dimensions of tensors are ignored and tensors
+themselves are treated as smallest objects, except for sum and accum. To get
+the abstract expression of a mu-graph, all of its lower-level graphs are
+inlined. 
+	BTW, the mu-graph representation is not unique for some same GPU
+computation. To make it unique, they define a carnonical form which is done by
+ranking the operators topologically.
+	Also, the abstract expressions are not 100% accurate; they are just good
+enough approximations for searching and pruning.
+	Moreover, subexpr only considers adding one more operation, instead of
+other more complex cancellations.
+
+Sec 5
+	A probabilistic algorithm, which, proven by Theorem 2, approaches 0
+probability to make a mistake as it is repeated infinitely. One cleverness here
+is that they measure per-element equivalence, since each element of the output
+tensor can be expressed in a simple form of Equation (2) of input tensor
+elements, which avoids the problem of dealing with different dimensions.
+	A few conditions need to be met for Theorem 2:
+	a. simply mu-graphs as LAX mu-graphs which (1) G contains only multi-linear
+operators4 , division, and exponentiation, and (2) every path from an input to
+an output in G includes at most one exponentiation.
+	b. Use integers instead of float-points to test, which is different from
+reality that floats are used in tensor programs.
+
+Sec 6
+	I had hoped this covers architecture-dependent optimmizations, but it's
+still at an abstract level: just working internally with respect to the
+abstract GPU model. 
+	It mentiones a cost function but doesn't point out any details, just the
+high-level idea of which algorithms to solve each optimization problem.
+	Therefore, it's not a second level of GPU-dependent optimization, but still
+an abstract optimization, on matters that would blow up mu-graph search space.
+Overall, it's the separation that's the key here, which separates some rather
+independent details from equivalence testing.
