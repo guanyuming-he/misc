@@ -1,0 +1,149 @@
+Sec 1 par 3
+	What does "scheduling" mean here? I suppose it consists of every detail of
+how a given kernel is executed on GPU. But a lot of things can be asked here:
+when they say, for a given kernel, at which level are things fixed? Is it the
+pseudocode level, or compiled CUDA binary level? Many things can still happen
+in between. I don't really know, but the big idea here is about searching for
+the most optimal execution details or arrangements for a fixed kernel at some
+level.
+---------
+par 4
+	Why do programmers have to ``manually specify the set of available
+operators and their implementations?'' I suppose here, even if the optimizer
+knows some rules such as a convolution can be calculated by a matrix mult, the
+mat mult operator has to be implemented	as a kernel for the optimizer to
+instantiate it.
+---------
+FlashAttention example
+	FlashAttention is a python package which implements the flash-decoding idea
+mentioned in https://crfm.stanford.edu/2023/10/12/flashdecoding.html. The
+example seems to suggest that the optimization strategy used in the
+flash-decoding idea cannot be simply implemented within the existing frameworks
+of optimizers, and thus takes a rather manual hacking (700 lines) to implement
+in Triton.  
+--------- 
+	Also, it's more than just combining things; we may need
+custom kernels which transformations may never reach (e.g. a kernel doing both
+things two previous kernels do).
+	Combining both and discovering new kernels is what Mirage is able to
+achieve with mu-graphs. A mu-graph represents a tensor program and how it's
+computed abstractedly.
+---------
+Stage 1
+	It's extremely difficult to cover every possible program and execution
+details. Thus, some compromises have to be made: Mirage first splits the input
+program into Lax subprograms, which reduces the search space drastically while
+still preserving many optimization opportunities.
+---------
+Stage 2
+	Now Mirage can exhausively search for programs with the Lax compromise, but
+the search space is still much larger than those of previous works. Thus,
+intensive pruning is needed, by "abstract expressions."
+	Still, as an exception, for the thread-level, mirage is still using a
+rule-based approach.
+	Yet another compromise, not on search space, but on equivalence, is made:
+Mirage only performs random tests over finite fields (I guess it means finite
+input space). But Mirage does provide a theoretical bound of strong
+correctness, thanks to the Lax compromise.
+---------
+Stage 3
+	Finally, Mirage perform a second level of optimization: for verified
+eq tensor programs, Mirage has a mu-graph optimizer that specifically optimizes
+these programs.
+	Question: Sec 1 only says mirage returns the optimal program after every
+eq tensor mu-graph is optimized by this optimize, but it doesn't say how to
+decide among them, i.e., how to measure which is more optimal. Need to look
+further.
+
+
+Sec 2
+	mu-graph is a hierachical graph; at each level, the computation is
+represented as a graph, and each node of the graph is a finer level
+computation which can also be represented by a lower level graph. A mu-graph in
+Mirage has three levels:
+		kernel graph, where each node is a kernel
+		block graph, where each node is computation done in a thread block
+		thread graph, where each node a computation done in a single thread
+(does it matter to assume it's for a warp, since instructions are scheduled
+this way?)
+
+	Overall, mu-graph works on an abstract level of computation; it relies on
+the abstract model shown in figure 2. not many details are architecture
+specific. It also is limited to optimizing DNN computations, which is why
+treating all data as tensors suffices here.
+
+	There are also a few other compromises the mu-graph made which weren't
+explicitly emphasized. The I/O map, in particular, only allow a few modes: 1)
+for input, split and replica; 2) for output, concatenation. These obviously
+can't cover all operations, e.g. overlapping shift for input (for-loop seems to
+partially enable this), or merge for output. But I suppose they may be enough
+to cover many while drastically reduce the search space. Such crude compromises
+can be good for the specific use case of optimizing tensor programs, but might
+not work for more general computations on GPU.
+
+	For-loop body: an addition to increase some expressive power. It would seem
+that the for-loop would blow up the search space drastically, since it can be
+inserted anywhere, cover any computation in iteration, and has many input
+split possibilities. Need to check how Mirage searches it.
+
+	Validity defn:
+1. "... tensors match the specification of o" seems to mean that the shapes of
+the tensors match the operations, which is a very simple type-checking. 
+3. seems to limit the power of for-loops as well as search spaces.
+
+My key impression on section 2 of mu-graphs: 
+1. at a rather high level. Not much architecture detail (or at all). 
+2. a lot of implicitly stated compromises (e.g. i/o limit, for-loop addition,
+limited for-loop expressive power) that are made between expressive power and
+search space.
+	
+
+Sec 3
+	Because the division by RMS(X_i) is element-wise, it can be swapped places
+quite freely. The mu-graph that Mirage discovered does the MatMul first and the
+division later. Such changes opens new opportunities for the so-called
+"schedule" optimizations.
+
+Sec 4
+	Incrementally build the mu-graph by repeatedly adding the next operator to
+an intermediate "prefix" graph, with low-level graphs generated recursively.
+Low-level graphs are generated if the operator is graph defined, as opposed to
+predefined operators.  This is used until the thread graph level, which is
+instead built with a rule-based transformation engine.
+	There are still too many to explore naively, so it is pruned by
+representing the graphs as abstract expressions, which are formal expressions
+in algebra. In particular, dimensions of tensors are ignored and tensors
+themselves are treated as smallest objects, except for sum and accum. To get
+the abstract expression of a mu-graph, all of its lower-level graphs are
+inlined. 
+	BTW, the mu-graph representation is not unique for some same GPU
+computation. To make it unique, they define a carnonical form which is done by
+ranking the operators topologically.
+	Also, the abstract expressions are not 100% accurate; they are just good
+enough approximations for searching and pruning.
+	Moreover, subexpr only considers adding one more operation, instead of
+other more complex cancellations.
+
+Sec 5
+	A probabilistic algorithm, which, proven by Theorem 2, approaches 0
+probability to make a mistake as it is repeated infinitely. One cleverness here
+is that they measure per-element equivalence, since each element of the output
+tensor can be expressed in a simple form of Equation (2) of input tensor
+elements, which avoids the problem of dealing with different dimensions.
+	A few conditions need to be met for Theorem 2:
+	a. simply mu-graphs as LAX mu-graphs which (1) G contains only multi-linear
+operators4 , division, and exponentiation, and (2) every path from an input to
+an output in G includes at most one exponentiation.
+	b. Use integers instead of float-points to test, which is different from
+reality that floats are used in tensor programs.
+
+Sec 6
+	I had hoped this covers architecture-dependent optimmizations, but it's
+still at an abstract level: just working internally with respect to the
+abstract GPU model. 
+	It mentiones a cost function but doesn't point out any details, just the
+high-level idea of which algorithms to solve each optimization problem.
+	Therefore, it's not a second level of GPU-dependent optimization, but still
+an abstract optimization, on matters that would blow up mu-graph search space.
+Overall, it's the separation that's the key here, which separates some rather
+independent details from equivalence testing.
