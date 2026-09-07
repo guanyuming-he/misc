@@ -1,0 +1,31 @@
+CH18: Object Oriented Programming Features
+
+Rust seems to have some design clashes with the Inheritance-based OOP.
+
+I think it's good to start with some fundamental grounds that both parties can
+agree on.
+	> One major goal of inheritance is for code reuse <
+
+The Rust book exposes one big problem of inheritance-based code-reuse: all or
+nothing. When one inherits from an interface, one expects the subtype to
+implement all of that interface's feature.
+
+> Rust has chosen a different set of trade-offs by not offering inheritance.
+> Inheritance is often at risk of sharing more code than necessary. Subclasses
+> shouldn’t always share all characteristics of their parent class but will do
+> so with inheritance. This can make a program’s design less flexible. It also
+> introduces the possibility of calling methods on subclasses that don’t make
+> sense or that cause errors because the methods don’t apply to the subclass.
+> In addition, some languages will only allow single inheritance (meaning a
+> subclass can only inherit from one class), further restricting the
+> flexibility of a program’s design.
+
+Therefore, Rust, by allowing unlimited extension, in the form of adding new
+methods to a type, and by traits that can group arbitrary subset of methods,
+provides a better granularity.
+
+Indeed, in many prog langs, one can hide certain methods of an interface, by,
+for example, making them throw a logic_error when invoked. Nevertheless, that
+feels like an after-thought, not what originially intended by a language's
+design.
+
